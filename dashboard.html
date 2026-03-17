@@ -110,6 +110,58 @@
     @media(max-width:1050px){ .g4{grid-template-columns:1fr 1fr;} .g2{grid-template-columns:1fr;} }
     @media(max-width:600px) { .g4{grid-template-columns:1fr 1fr;} }
 
+    /* ── MOBILE ──────────────────────────────────────────── */
+    @media(max-width:768px){
+      .header { padding: 14px 16px; position: relative; }
+      .header-brand h1 { font-size: 15px; }
+      .header-brand p  { font-size: 11px; }
+      .badges { gap: 6px; }
+      .badge  { padding: 5px 11px; font-size: 11px; }
+
+      #snapshot { padding: 0 16px !important; }
+      #snapshot.open { padding: 14px 16px 0 !important; }
+      .snap-grid { grid-template-columns: 1fr 1fr; padding: 14px 16px; gap: 12px; }
+      .snap-l, .snap-r { font-size: 13px; }
+
+      .main { padding: 20px 16px 48px; }
+      .section { margin-bottom: 36px; }
+      .section-title { font-size: 11px; margin-bottom: 14px; }
+
+      .g2  { grid-template-columns: 1fr; gap: 16px; }
+      .g4  { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+      .card { padding: 16px; }
+      .card-hdr { margin-bottom: 14px; }
+      .card-hdr h3 { font-size: 14px; }
+      .card-hdr p  { font-size: 11px; }
+
+      .stat-card { padding: 16px; }
+      .stat-label { font-size: 10px; margin-bottom: 6px; }
+      .stat-val   { font-size: 28px; }
+      .stat-chg   { font-size: 11px; }
+
+      .force-half { padding: 12px 14px; }
+      .force-val  { font-size: 26px; }
+      .force-pct  { font-size: 11px; }
+
+      .chart-wrap { height: 240px; }
+
+      .norm-note  { font-size: 10px; }
+      .insight    { font-size: 12px; margin-top: 12px; }
+
+      /* Asymmetry overview stacks radar below bars */
+      .card > div[style*="grid-template-columns:1fr 1.1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      .cw-tall { height: 260px; }
+    }
+    @media(max-width:480px){
+      .g4 { grid-template-columns: 1fr; }
+      .snap-grid { grid-template-columns: 1fr; }
+      .force-val { font-size: 22px; }
+      .chart-wrap { height: 220px; }
+    }
+
     /* ── CARD ────────────────────────────────────────────── */
     .card {
       background: var(--surface);
@@ -594,10 +646,11 @@ const SNAPSHOTS = [
 ];
 
 // ── CHART DEFAULTS ────────────────────────────────────────────────────
+const isMobile = window.innerWidth <= 768;
 Chart.defaults.color       = '#4b5470';
 Chart.defaults.borderColor = '#e4e9f2';
 Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont,"Segoe UI","Inter",system-ui,sans-serif';
-Chart.defaults.font.size   = 12;
+Chart.defaults.font.size   = isMobile ? 10 : 12;
 Chart.defaults.devicePixelRatio = window.devicePixelRatio * 2;
 
 const TT = {
@@ -645,15 +698,21 @@ const refBandPlugin = {
     ctx.setLineDash([]);
 
     // Right-edge labels
-    ctx.font = '10px -apple-system,sans-serif';
+    const labelFont = isMobile ? '9px -apple-system,sans-serif' : '10px -apple-system,sans-serif';
+    ctx.font = labelFont;
     ctx.textAlign = 'right';
 
     ctx.fillStyle = 'rgba(80,70,228,0.70)';
     ctx.fillText('avg ' + norm.p50 + ' N', CA.right - 6, yP50 - 5);
 
     ctx.fillStyle = 'rgba(80,70,228,0.50)';
-    ctx.fillText('75th pct — ' + norm.p75 + ' N', CA.right - 6, yP75 - 5);
-    ctx.fillText('25th pct — ' + norm.p25 + ' N', CA.right - 6, yP25 - 5);
+    if (!isMobile) {
+      ctx.fillText('75th pct — ' + norm.p75 + ' N', CA.right - 6, yP75 - 5);
+      ctx.fillText('25th pct — ' + norm.p25 + ' N', CA.right - 6, yP25 - 5);
+    } else {
+      ctx.fillText(norm.p75 + ' N', CA.right - 6, yP75 - 5);
+      ctx.fillText(norm.p25 + ' N', CA.right - 6, yP25 - 5);
+    }
 
     ctx.restore();
   }
@@ -718,14 +777,14 @@ function mkMuscle(id, key, leftData, rightData, norm) {
         x: {
           grid: { color:'#edf0f7', drawTicks:false },
           border: { display:false },
-          ticks: { color:'#3d4461', padding:10, font:{ size:12, weight:'500' } },
+          ticks: { color:'#3d4461', padding:isMobile?6:10, font:{ size:isMobile?9:12, weight:'500' }, maxRotation: isMobile?30:0 },
         },
         y: {
           grid: { color:'#edf0f7' },
           border: { display:false },
-          title: { display:true, text:'Force (N)', color:'#3d4461', font:{ size:12, weight:'600' } },
+          title: { display: !isMobile, text:'Force (N)', color:'#3d4461', font:{ size:12, weight:'600' } },
           min: 0, max: yMax,
-          ticks: { color:'#3d4461', font:{ size:11, weight:'500' }, callback: v => v + ' N', stepSize: Math.round(yMax/5/50)*50 },
+          ticks: { color:'#3d4461', font:{ size:isMobile?9:11, weight:'500' }, callback: v => v + ' N', stepSize: Math.round(yMax/5/50)*50, maxTicksLimit: isMobile?5:8 },
         },
       },
     },
