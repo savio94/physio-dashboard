@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physio Progress — Saviovictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #f0f4f9;
+      --surface:  #ffffff;
+      --sf2:      #f5f7fb;
+      --border:   #e4e9f2;
+      --text:     #0f1623;
+      --muted:    #7b849e;
+      --subtle:   #a8b0c8;
+      --left:     #2563eb;
+      --leftbg:   #eff5ff;
+      --right:    #dc5a1e;
+      --rightbg:  #fff4ef;
+      --good:     #16a34a;
+      --goodbg:   #f0fdf4;
+      --warn:     #b45309;
+      --warnbg:   #fffbeb;
+      --bad:      #b91c1c;
+      --badbg:    #fff1f1;
+      --accent:   #5046e4;
+      --shadow-sm: 0 1px 3px rgba(15,22,35,0.06), 0 1px 2px rgba(15,22,35,0.04);
+      --shadow:    0 2px 8px rgba(15,22,35,0.07), 0 4px 24px rgba(15,22,35,0.05);
+      --radius:    14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: var(--shadow-sm);
+    }
+    .header-inner {
+      max-width: 1300px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 14px;
+    }
+    .header-brand h1 {
+      font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.3px;
+    }
+    .header-brand p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .badge {
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+      border: 1.5px solid transparent;
+      cursor: pointer; transition: all .2s;
+      user-select: none; white-space: nowrap;
+    }
+    .badge:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .badge.active { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .ball { background: var(--sf2); border-color: var(--border); color: var(--muted); }
+    .ball.active { background: var(--text); border-color: var(--text); color: #fff; }
+    .b1 { background: #eff5ff; border-color: #bfcffc; color: #2255cc; }
+    .b1.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .b2 { background: #f3f0ff; border-color: #c4b8f9; color: #4c38cc; }
+    .b2.active { background: #5046e4; border-color: #5046e4; color: #fff; }
+    .b3 { background: #f0fdf4; border-color: #a3d9b1; color: #15803d; }
+    .b3.active { background: #16a34a; border-color: #16a34a; color: #fff; }
+
+    /* ── SNAPSHOT PANEL ──────────────────────────────────── */
+    #snapshot {
+      max-width: 1300px; margin: 0 auto; padding: 0 40px;
+      overflow: hidden; max-height: 0;
+      transition: max-height .4s ease, padding .4s ease;
+    }
+    #snapshot.open { max-height: 400px; padding: 20px 40px 0; }
+    .snap-grid {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 24px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px; margin-bottom: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+    .snap-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--muted); margin-bottom: 6px; }
+    .snap-lr { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+    .snap-l  { font-size: 15px; font-weight: 800; color: var(--left); }
+    .snap-r  { font-size: 15px; font-weight: 800; color: var(--right); }
+    .snap-asym { font-size: 11px; color: var(--muted); }
+
+    /* ── MAIN LAYOUT ─────────────────────────────────────── */
+    .main { max-width: 1300px; margin: 0 auto; padding: 36px 40px 60px; }
+    .section { margin-bottom: 52px; }
+    .section-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--muted);
+      margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+    }
+    .section-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    .g2  { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .g4  { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+    @media(max-width:1050px){ .g4{grid-template-columns:1fr 1fr;} .g2{grid-template-columns:1fr;} }
+    @media(max-width:600px) { .g4{grid-template-columns:1fr 1fr;} }
+
+    /* ── CARD ────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .card-hdr {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .card-hdr h3 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+    .card-hdr p  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* ── STAT CARDS (highlights) ─────────────────────────── */
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px 24px;
+      box-shadow: var(--shadow);
+    }
+    .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--muted); margin-bottom: 10px; }
+    .stat-val { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 6px; letter-spacing: -1px; }
+    .stat-chg { font-size: 12px; font-weight: 600; }
+    .up      { color: var(--good); }
+    .down    { color: var(--bad); }
+    .neutral { color: var(--warn); }
+
+    /* ── PILL ────────────────────────────────────────────── */
+    .pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; white-space: nowrap;
+    }
+    .pill-good { background: var(--goodbg); color: var(--good); }
+    .pill-warn { background: var(--warnbg); color: var(--warn); }
+    .pill-bad  { background: var(--badbg);  color: var(--bad);  }
+
+    /* ── FORCE CALLOUT ───────────────────────────────────── */
+    .force-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+    .force-half {
+      padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .force-half:first-child {
+      background: var(--leftbg);
+      border-right: 1px solid var(--border);
+    }
+    .force-half:last-child { background: var(--rightbg); }
+    .force-leg   { font-size: 10px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .9px; }
+    .force-leg.fl { color: var(--left); }
+    .force-leg.fr { color: var(--right); }
+    .force-val   { font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+    .force-val.fl { color: var(--left); }
+    .force-val.fr { color: var(--right); }
+    .force-unit  { font-size: 15px; font-weight: 500; }
+    .force-pct   { font-size: 12px; color: var(--muted); font-weight: 500; }
+    /* Percentile bar */
+    .pct-bar { height: 4px; background: var(--border); border-radius: 2px;
+      margin-top: 8px; overflow: hidden; }
+    .pct-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+    .pct-fill-l { background: var(--left); }
+    .pct-fill-r { background: var(--right); }
+
+    /* ── CHART AREA ──────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 280px; margin-bottom: 6px; }
+
+    /* ── NORM LEGEND ─────────────────────────────────────── */
+    .norm-note {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .norm-swatch {
+      width: 20px; height: 10px; flex-shrink: 0;
+      background: rgba(80, 70, 228, 0.12);
+      border: 1px solid rgba(80, 70, 228, 0.35);
+      border-radius: 3px;
+    }
+
+    /* ── INSIGHT ─────────────────────────────────────────── */
+    .insight {
+      margin-top: 16px; padding: 12px 16px;
+      background: var(--sf2); border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      font-size: 12px; color: var(--muted); line-height: 1.7;
+    }
+    .insight b { color: var(--text); font-weight: 600; }
+
+    /* ── ASYM BARS ───────────────────────────────────────── */
+    .asym-row { margin-bottom: 14px; }
+    .asym-top { display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 5px; }
+    .asym-label { font-size: 13px; font-weight: 500; color: var(--text); }
+    .asym-track { height: 8px; background: var(--sf2); border-radius: 4px;
+      overflow: hidden; border: 1px solid var(--border); }
+    .asym-fill  { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+    /* ── DIVIDER ─────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <h1>Saviovictor — Lower Limb Physio Progress</h1>
+      <p>Assessed by Stance HSR &nbsp;·&nbsp; Deftronin Technologies &nbsp;·&nbsp; VALD Force Frame</p>
+    </div>
+    <div class="badges">
+      <div class="badge ball active" data-session="-1" onclick="selectSession(-1)">All Sessions</div>
+      <div class="badge b1" data-session="0" onclick="selectSession(0)">Session 1 &mdash; 3 Nov 2025</div>
+      <div class="badge b2" data-session="1" onclick="selectSession(1)">Session 2 &mdash; 6 Mar 2026</div>
+      <div class="badge b3" data-session="2" onclick="selectSession(2)">Session 3 &mdash; 14 Mar 2026</div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════ SNAPSHOT ══════════════ -->
+<div id="snapshot">
+  <div class="snap-grid" id="snap-inner"></div>
+</div>
+
+<main class="main">
+
+  <!-- ── HIGHLIGHTS ── -->
+  <section class="section">
+    <div class="section-title">Key Progress Highlights</div>
+    <div class="g4">
+      <div class="stat-card">
+        <div class="stat-label">Hip Extension — Left</div>
+        <div class="stat-val up">388<span style="font-size:18px;font-weight:500"> N</span></div>
+        <div class="stat-chg up">↑ 166% since Nov 2025</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Hip Extension Asymmetry</div>
+        <div class="stat-val up">3.3<span style="font-size:18px;font-weight:500">%</span></div>
+        <div class="stat-chg up">↓ from 56% in Nov 2025</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Knee Extension — Left</div>
+        <div class="stat-val neutral">242<span style="font-size:18px;font-weight:500"> N</span></div>
+        <div class="stat-chg up">↑ 19% since Nov 2025</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Knee Flexion Asymmetry</div>
+        <div class="stat-val down">32<span style="font-size:18px;font-weight:500">%</span></div>
+        <div class="stat-chg neutral">Focus area — Right dominant</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HIP MUSCULATURE ── -->
+  <section class="section">
+    <div class="section-title">Hip Musculature</div>
+    <div class="g2">
+
+      <!-- Hip Extension -->
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <h3>Hip Extension — Prone</h3>
+            <p>Max Isometric Force across sessions</p>
+          </div>
+          <span class="pill pill-good">3.3% Asymmetry</span>
+        </div>
+        <div class="force-row">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl" id="fv-hipExt-L">388<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipExt-L">48th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-l" id="pb-hipExt-L" style="width:48%"></div></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr" id="fv-hipExt-R">401<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipExt-R">50th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-r" id="pb-hipExt-R" style="width:50%"></div></div>
+          </div>
+        </div>
+        <div class="norm-note">
+          <div class="norm-swatch"></div>
+          Shaded region = normal range for age &amp; gender (25th–75th pct) &nbsp;·&nbsp; dashed line = population average
+        </div>
+        <div class="chart-wrap"><canvas id="c-hipExt"></canvas></div>
+        <div class="insight"><b>Biggest win.</b> Left force tripled from 146 → 388 N. Asymmetry collapsed from 56% → 3.3%, with both sides now at the 50th percentile — inside the normal range.</div>
+      </div>
+
+      <!-- Hip Flexion -->
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <h3>Hip Flexion — Seated</h3>
+            <p>Max Isometric Force across sessions</p>
+          </div>
+          <span class="pill pill-warn">17% Asymmetry</span>
+        </div>
+        <div class="force-row">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl" id="fv-hipFlex-L">156<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipFlex-L">11th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-l" id="pb-hipFlex-L" style="width:11%"></div></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr" id="fv-hipFlex-R">129<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipFlex-R">7th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-r" id="pb-hipFlex-R" style="width:7%"></div></div>
+          </div>
+        </div>
+        <div class="norm-note">
+          <div class="norm-swatch"></div>
+          Shaded region = normal range for age &amp; gender (25th–75th pct) &nbsp;·&nbsp; dashed line = population average
+        </div>
+        <div class="chart-wrap"><canvas id="c-hipFlex"></canvas></div>
+        <div class="insight">Values stable across all three sessions. Both sides sit below the normal range — hip flexor strength is an area to develop further.</div>
+      </div>
+
+      <!-- Hip Add/Abd -->
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <h3>Hip Adduction / Abduction — 45°</h3>
+            <p>Max Isometric Force across sessions</p>
+          </div>
+          <span class="pill pill-good">3.5% Asymmetry</span>
+        </div>
+        <div class="force-row">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl" id="fv-hipAA-L">202<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipAA-L">6th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-l" id="pb-hipAA-L" style="width:6%"></div></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr" id="fv-hipAA-R">195<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-hipAA-R">5th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-r" id="pb-hipAA-R" style="width:5%"></div></div>
+          </div>
+        </div>
+        <div class="norm-note">
+          <div class="norm-swatch"></div>
+          Shaded region = normal range for age &amp; gender (25th–75th pct) &nbsp;·&nbsp; dashed line = population average
+        </div>
+        <div class="chart-wrap"><canvas id="c-hipAA"></canvas></div>
+        <div class="insight">Symmetry is excellent (3.5%). Force has improved ~50% from ~135 N to ~200 N, but both sides remain below the normal range — absolute strength needs continued work.</div>
+      </div>
+
+      <!-- Knee Extension -->
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <h3>Knee Extension — Seated 90°</h3>
+            <p>Max Isometric Force across sessions</p>
+          </div>
+          <span class="pill pill-warn">12% Asymmetry</span>
+        </div>
+        <div class="force-row">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl" id="fv-kneeExt-L">242<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-kneeExt-L">30th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-l" id="pb-kneeExt-L" style="width:30%"></div></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr" id="fv-kneeExt-R">275<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-kneeExt-R">41st percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-r" id="pb-kneeExt-R" style="width:41%"></div></div>
+          </div>
+        </div>
+        <div class="norm-note">
+          <div class="norm-swatch"></div>
+          Shaded region = normal range for age &amp; gender (25th–75th pct) &nbsp;·&nbsp; dashed line = population average
+        </div>
+        <div class="chart-wrap"><canvas id="c-kneeExt"></canvas></div>
+        <div class="insight"><b>Side flip.</b> In Nov the left leg (203 N) was stronger than right (171 N). By March the right overtook it (275 vs 242 N) — right quad recovery has clearly accelerated.</div>
+      </div>
+
+      <!-- Knee Flexion -->
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <h3>Knee Flexion — Prone</h3>
+            <p>Max Isometric Force across sessions</p>
+          </div>
+          <span class="pill pill-bad">32% Asymmetry</span>
+        </div>
+        <div class="force-row">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl" id="fv-kneeFlex-L">82<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-kneeFlex-L">2nd percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-l" id="pb-kneeFlex-L" style="width:2%"></div></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr" id="fv-kneeFlex-R">121<span class="force-unit"> N</span></div>
+            <div class="force-pct"   id="fp-kneeFlex-R">12th percentile</div>
+            <div class="pct-bar"><div class="pct-fill pct-fill-r" id="pb-kneeFlex-R" style="width:12%"></div></div>
+          </div>
+        </div>
+        <div class="norm-note">
+          <div class="norm-swatch"></div>
+          Shaded region = normal range for age &amp; gender (25th–75th pct) &nbsp;·&nbsp; dashed line = population average
+        </div>
+        <div class="chart-wrap"><canvas id="c-kneeFlex"></canvas></div>
+        <div class="insight"><b>Priority area.</b> Left hamstring (82 N) is at the 2nd percentile — well below the normal range. A 32% asymmetry persists. Targeted hamstring loading is the key focus going forward.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── SQUAT & STABILITY ── -->
+  <section class="section">
+    <div class="section-title">Squat &amp; Single-Leg Stability</div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-hdr">
+          <div><h3>Squat Assessment</h3><p>Peak Force L &amp; R (N) + Asymmetry · Session 3 = depth only</p></div>
+        </div>
+        <div class="chart-wrap"><canvas id="c-squat"></canvas></div>
+        <div class="insight" style="margin-top:16px"><b>Good progression.</b> Right: 342 → 399 N (+17%). Left: 224 → 320 N (+43%). Squat asymmetry improved from 34% down to 20%.</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div><h3>Single-Leg Stability — CoP A-P</h3><p>Avg Centre-of-Pressure Range (mm)</p></div>
+          <span class="pill pill-warn">29% Asymmetry</span>
+        </div>
+        <div class="force-row" style="margin-bottom:18px">
+          <div class="force-half">
+            <div class="force-leg fl">Left Leg</div>
+            <div class="force-val fl">28<span class="force-unit"> mm</span></div>
+          </div>
+          <div class="force-half">
+            <div class="force-leg fr">Right Leg</div>
+            <div class="force-val fr">40<span class="force-unit"> mm</span></div>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="c-stability"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ASYMMETRY OVERVIEW ── -->
+  <section class="section">
+    <div class="section-title">Asymmetry Overview — Latest Session</div>
+    <div class="g2">
+
+      <!-- Radar -->
+      <div class="card">
+        <div class="card-hdr"><div><h3>Asymmetry by Muscle — All Sessions</h3><p>Lower values = better symmetry</p></div></div>
+        <div style="position:relative;height:320px"><canvas id="c-radar"></canvas></div>
+      </div>
+
+      <!-- Bars -->
+      <div class="card">
+        <div class="card-hdr"><div><h3>Current Asymmetry Levels</h3><p>Latest session — 14 Mar 2026</p></div></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px">
+          <span class="pill pill-good">&lt; 10%</span>&nbsp; Normal &nbsp;&nbsp;
+          <span class="pill pill-warn">10 – 20%</span>&nbsp; Moderate &nbsp;&nbsp;
+          <span class="pill pill-bad">&gt; 20%</span>&nbsp; Significant
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Hip Extension</span><span class="pill pill-good">3.3%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:3.3%;background:var(--good)"></div></div>
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Hip Add / Abduction</span><span class="pill pill-good">3.5%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:3.5%;background:var(--good)"></div></div>
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Hip Flexion</span><span class="pill pill-warn">17%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:17%;background:var(--warn)"></div></div>
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Knee Extension</span><span class="pill pill-warn">12%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:12%;background:var(--warn)"></div></div>
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Knee Flexion</span><span class="pill pill-bad">32%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:32%;background:var(--bad)"></div></div>
+        </div>
+        <div class="asym-row">
+          <div class="asym-top"><span class="asym-label">Single-Leg Stability</span><span class="pill pill-bad">29%</span></div>
+          <div class="asym-track"><div class="asym-fill" style="width:29%;background:var(--bad)"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── ASYMMETRY TREND ── -->
+  <section class="section">
+    <div class="section-title">Asymmetry Trend Over Time</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">How left-right asymmetry evolved across all three assessment sessions. Lower is better.</div>
+      <div style="position:relative;height:280px"><canvas id="c-asymTrend"></canvas></div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────
+const SESSIONS = ['3 Nov 2025', '6 Mar 2026', '14 Mar 2026'];
+
+const D = {
+  hipExt:   { L:[146,293,388], R:[332,281,401] },
+  hipFlex:  { L:[156,156,156], R:[129,129,129] },
+  hipAA:    { L:[140,210,202], R:[128,211,195] },
+  kneeExt:  { L:[203,242,242], R:[171,275,275] },
+  kneeFlex: { L:[76, 82, 82],  R:[null,121,121] },
+};
+
+// Normative bands estimated by fitting a normal distribution
+// to all observed (force, percentile) pairs across sessions.
+const NORMS = {
+  hipExt:   { p25:263, p50:400, p75:537 },
+  hipFlex:  { p25:216, p50:289, p75:362 },
+  hipAA:    { p25:270, p50:323, p75:376 },
+  kneeExt:  { p25:225, p50:300, p75:375 },
+  kneeFlex: { p25:143, p50:173, p75:203 },
+};
+
+// Per-session display values
+const SVALS = {
+  hipExt:  { L:['146','293','388'], R:['332','281','401'], LP:[13,30,48], RP:[57,28,50] },
+  hipFlex: { L:['156','156','156'], R:['129','129','129'], LP:[17,11,11], RP:[8,7,7]    },
+  hipAA:   { L:['140','210','202'], R:['128','211','195'], LP:[1,4,6],    RP:[1,4,5]    },
+  kneeExt: { L:['203','242','242'], R:['171','275','275'], LP:[34,30,30], RP:[21,41,41] },
+  kneeFlex:{ L:['76', '82', '82'], R:['—',  '121','121'], LP:[1,2,2],    RP:[0,12,12]  },
+};
+
+const PCT_LABELS = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th',
+  '11th','12th','13th','14th','15th','16th','17th','18th','19th','20th',
+  '21st','22nd','23rd','24th','25th','26th','27th','28th','29th','30th',
+  '31st','32nd','33rd','34th','35th','36th','37th','38th','39th','40th',
+  '41st','42nd','43rd','44th','45th','46th','47th','48th','49th','50th',
+  '51st','52nd','53rd','54th','55th','56th','57th','58th','59th','60th'];
+function pctLabel(n) { return (PCT_LABELS[n-1] || n+'th') + ' percentile'; }
+
+const SNAPSHOTS = [
+  { color:'#2563eb', items:[
+    { label:'Hip Extension',  L:'146 N (13th pct)', R:'332 N (57th pct)', asym:'56% Right' },
+    { label:'Hip Flexion',    L:'156 N (17th pct)', R:'129 N (8th pct)',  asym:'16.9% Left' },
+    { label:'Hip Add/Abd',    L:'140 N (1st pct)',  R:'128 N (1st pct)',  asym:'9.1% Left' },
+    { label:'Knee Extension', L:'203 N (34th pct)', R:'171 N (21st pct)', asym:'15.7% Left' },
+    { label:'Knee Flexion',   L:'76 N (1st pct)',   R:'—',               asym:'56% Right' },
+    { label:'Squat',          L:'224 N',            R:'342 N',            asym:'34.3% Right' },
+    { label:'Stability CoP',  L:'28 mm',            R:'40 mm',            asym:'29.3%' },
+  ]},
+  { color:'#5046e4', items:[
+    { label:'Hip Extension',  L:'293 N (30th pct)', R:'281 N (28th pct)', asym:'4% Left' },
+    { label:'Hip Flexion',    L:'156 N (11th pct)', R:'129 N (7th pct)',  asym:'17% Left' },
+    { label:'Hip Add/Abd',    L:'210 N (4th pct)',  R:'211 N (4th pct)',  asym:'0.6% Right' },
+    { label:'Knee Extension', L:'242 N (30th pct)', R:'275 N (41st pct)', asym:'12% Right' },
+    { label:'Knee Flexion',   L:'82 N (2nd pct)',   R:'121 N (12th pct)', asym:'32% Right' },
+    { label:'Squat',          L:'320 N',            R:'399 N',            asym:'20% Right' },
+    { label:'Stability CoP',  L:'28 mm',            R:'40 mm',            asym:'29%' },
+  ]},
+  { color:'#16a34a', items:[
+    { label:'Hip Extension',  L:'388 N (48th pct)', R:'401 N (50th pct)', asym:'3.3% Right' },
+    { label:'Hip Flexion',    L:'156 N (11th pct)', R:'129 N (7th pct)',  asym:'17% Left' },
+    { label:'Hip Add/Abd',    L:'202 N (6th pct)',  R:'195 N (5th pct)',  asym:'3.5% Left' },
+    { label:'Knee Extension', L:'242 N (30th pct)', R:'275 N (41st pct)', asym:'12% Right' },
+    { label:'Knee Flexion',   L:'82 N (2nd pct)',   R:'121 N (12th pct)', asym:'32% Right' },
+    { label:'Squat Depth',    L:'—',               R:'—',               asym:'40.2 cm' },
+    { label:'Stability CoP',  L:'28 mm',            R:'40 mm',            asym:'29%' },
+  ]},
+];
+
+// ── CHART DEFAULTS ────────────────────────────────────────────────────
+Chart.defaults.color       = '#4b5470';
+Chart.defaults.borderColor = '#e4e9f2';
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont,"Segoe UI","Inter",system-ui,sans-serif';
+Chart.defaults.font.size   = 12;
+Chart.defaults.devicePixelRatio = window.devicePixelRatio * 2;
+
+const TT = {
+  backgroundColor: '#ffffff',
+  borderColor: '#e4e9f2',
+  borderWidth: 1,
+  padding: 12,
+  cornerRadius: 10,
+  titleColor: '#0f1623',
+  bodyColor: '#7b849e',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+};
+
+// ── NORMATIVE BAND PLUGIN ──────────────────────────────────────────────
+const refBandPlugin = {
+  id: 'refBand',
+  beforeDatasetsDraw(chart) {
+    const norm = chart.options.plugins?.refBand;
+    if (!norm) return;
+    const { ctx, chartArea: CA, scales: { y } } = chart;
+    const yP25 = y.getPixelForValue(norm.p25);
+    const yP75 = y.getPixelForValue(norm.p75);
+    const yP50 = y.getPixelForValue(norm.p50);
+
+    ctx.save();
+
+    // Filled band
+    ctx.fillStyle = 'rgba(80,70,228,0.08)';
+    ctx.fillRect(CA.left, yP75, CA.width, yP25 - yP75);
+
+    // Top edge (75th pct)
+    ctx.strokeStyle = 'rgba(80,70,228,0.30)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(CA.left, yP75); ctx.lineTo(CA.right, yP75); ctx.stroke();
+
+    // Bottom edge (25th pct)
+    ctx.beginPath(); ctx.moveTo(CA.left, yP25); ctx.lineTo(CA.right, yP25); ctx.stroke();
+
+    // Median — solid and more prominent
+    ctx.strokeStyle = 'rgba(80,70,228,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath(); ctx.moveTo(CA.left, yP50); ctx.lineTo(CA.right, yP50); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Right-edge labels
+    ctx.font = '10px -apple-system,sans-serif';
+    ctx.textAlign = 'right';
+
+    ctx.fillStyle = 'rgba(80,70,228,0.70)';
+    ctx.fillText('avg ' + norm.p50 + ' N', CA.right - 6, yP50 - 5);
+
+    ctx.fillStyle = 'rgba(80,70,228,0.50)';
+    ctx.fillText('75th pct — ' + norm.p75 + ' N', CA.right - 6, yP75 - 5);
+    ctx.fillText('25th pct — ' + norm.p25 + ' N', CA.right - 6, yP25 - 5);
+
+    ctx.restore();
+  }
+};
+
+// ── MUSCLE CHART BUILDER ──────────────────────────────────────────────
+const allMuscleCharts = {};
+
+function mkMuscle(id, key, leftData, rightData, norm) {
+  const allVals = [...leftData, ...rightData].filter(v => v != null);
+  const yMax = Math.max(Math.max(...allVals), norm.p75) * 1.22;
+
+  const ch = new Chart(document.getElementById(id), {
+    type: 'line',
+    plugins: [refBandPlugin],
+    data: {
+      labels: SESSIONS,
+      datasets: [
+        {
+          label: 'Left',
+          data: leftData,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,0.10)',
+          borderWidth: 2.5,
+          pointRadius: [6,6,6],
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#2563eb',
+          pointBorderWidth: 2.5,
+          fill: false, tension: 0.4, spanGaps: true,
+        },
+        {
+          label: 'Right',
+          data: rightData,
+          borderColor: '#dc5a1e',
+          backgroundColor: 'rgba(220,90,30,0.07)',
+          borderWidth: 2.5,
+          pointRadius: [6,6,6],
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#dc5a1e',
+          pointBorderWidth: 2.5,
+          fill: false, tension: 0.4, spanGaps: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color:'#7b849e', boxWidth:12, padding:16,
+            usePointStyle:true, pointStyle:'circle', font:{size:12} }
+        },
+        tooltip: {
+          ...TT,
+          callbacks: { label: c => `  ${c.dataset.label}: ${c.raw ?? 'N/A'} N` },
+        },
+        refBand: norm,
+      },
+      scales: {
+        x: {
+          grid: { color:'#edf0f7', drawTicks:false },
+          border: { display:false },
+          ticks: { color:'#3d4461', padding:10, font:{ size:12, weight:'500' } },
+        },
+        y: {
+          grid: { color:'#edf0f7' },
+          border: { display:false },
+          title: { display:true, text:'Force (N)', color:'#3d4461', font:{ size:12, weight:'600' } },
+          min: 0, max: yMax,
+          ticks: { color:'#3d4461', font:{ size:11, weight:'500' }, callback: v => v + ' N', stepSize: Math.round(yMax/5/50)*50 },
+        },
+      },
+    },
+  });
+
+  allMuscleCharts[key] = ch;
+  return ch;
+}
+
+mkMuscle('c-hipExt',   'hipExt',   D.hipExt.L,   D.hipExt.R,   NORMS.hipExt);
+mkMuscle('c-hipFlex',  'hipFlex',  D.hipFlex.L,  D.hipFlex.R,  NORMS.hipFlex);
+mkMuscle('c-hipAA',    'hipAA',    D.hipAA.L,    D.hipAA.R,    NORMS.hipAA);
+mkMuscle('c-kneeExt',  'kneeExt',  D.kneeExt.L,  D.kneeExt.R,  NORMS.kneeExt);
+mkMuscle('c-kneeFlex', 'kneeFlex', D.kneeFlex.L, D.kneeFlex.R, NORMS.kneeFlex);
+
+// ── SQUAT ──────────────────────────────────────────────────────────────
+new Chart(document.getElementById('c-squat'), {
+  type: 'bar',
+  data: {
+    labels: SESSIONS,
+    datasets: [
+      { label:'Left (N)',  data:[224.2,320.2,null], backgroundColor:'rgba(37,99,235,0.75)', borderColor:'#2563eb', borderWidth:0, borderRadius:8, borderSkipped:false },
+      { label:'Right (N)', data:[341.7,399.4,null], backgroundColor:'rgba(220,90,30,0.75)', borderColor:'#dc5a1e', borderWidth:0, borderRadius:8, borderSkipped:false },
+      { type:'line', label:'Asymmetry (%)', data:[34.3,20,null],
+        borderColor:'#b45309', backgroundColor:'rgba(180,83,9,0.08)',
+        borderWidth:2, pointRadius:6, pointBackgroundColor:'#fff',
+        pointBorderColor:'#b45309', pointBorderWidth:2,
+        yAxisID:'y2', spanGaps:true, fill:true, tension:.4 },
+    ],
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{ legend:{labels:{color:'#3d4461',boxWidth:12,usePointStyle:true,pointStyle:'circle',padding:16,font:{size:12,weight:'600'}}}, tooltip:{...TT} },
+    scales:{
+      x:{grid:{color:'#f0f2f8'},ticks:{color:'#3d4461',padding:10,font:{size:12,weight:'500'}}},
+      y:{grid:{color:'#f0f2f8'},title:{display:true,text:'Force (N)',color:'#3d4461'},beginAtZero:false,ticks:{color:'#3d4461'}},
+      y2:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Asymmetry (%)',color:'#3d4461'},min:0,max:55,ticks:{color:'#3d4461',callback:v=>v+'%'}},
+    },
+  },
+});
+
+// ── STABILITY ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('c-stability'), {
+  type: 'bar',
+  data: {
+    labels: SESSIONS,
+    datasets: [
+      { label:'Left (mm)',  data:[28,28,28], backgroundColor:'rgba(37,99,235,0.75)', borderColor:'#2563eb', borderWidth:0, borderRadius:8, borderSkipped:false },
+      { label:'Right (mm)', data:[40,40,40], backgroundColor:'rgba(220,90,30,0.75)', borderColor:'#dc5a1e', borderWidth:0, borderRadius:8, borderSkipped:false },
+    ],
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{ legend:{labels:{color:'#3d4461',boxWidth:12,usePointStyle:true,pointStyle:'circle',padding:16,font:{size:12,weight:'600'}}}, tooltip:{...TT} },
+    scales:{
+      x:{grid:{color:'#f0f2f8'},ticks:{color:'#3d4461',padding:10,font:{size:12,weight:'500'}}},
+      y:{grid:{color:'#f0f2f8'},title:{display:true,text:'CoP Range (mm)',color:'#3d4461'},beginAtZero:true,max:55,ticks:{color:'#3d4461'}},
+    },
+  },
+});
+
+// ── RADAR ──────────────────────────────────────────────────────────────
+new Chart(document.getElementById('c-radar'), {
+  type: 'radar',
+  data: {
+    labels: ['Hip\nExtension','Hip\nAdd/Abd','Hip\nFlexion','Knee\nExtension','Knee\nFlexion','Stability'],
+    datasets: [
+      { label:'3 Nov 2025',  data:[56,9.1,16.9,15.7,56,29.3],
+        borderColor:'rgba(37,99,235,0.8)',  backgroundColor:'rgba(37,99,235,0.08)',  borderWidth:2, pointRadius:4, pointBackgroundColor:'#2563eb' },
+      { label:'6 Mar 2026',  data:[4,0.6,17,12,32,29],
+        borderColor:'rgba(80,70,228,0.8)',  backgroundColor:'rgba(80,70,228,0.08)',  borderWidth:2, pointRadius:4, pointBackgroundColor:'#5046e4' },
+      { label:'14 Mar 2026', data:[3.3,3.5,17,12,32,29],
+        borderColor:'rgba(22,163,74,0.85)', backgroundColor:'rgba(22,163,74,0.08)', borderWidth:2, pointRadius:4, pointBackgroundColor:'#16a34a' },
+    ],
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{labels:{color:'#3d4461',boxWidth:12,usePointStyle:true,pointStyle:'circle',padding:14,font:{size:12,weight:'600'}}},
+      tooltip:{...TT,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}},
+    },
+    scales:{r:{
+      grid:{color:'#e4e9f2'},
+      angleLines:{color:'#e4e9f2'},
+      pointLabels:{color:'#3d4461',font:{size:11,weight:'600'}},
+      ticks:{color:'#4b5470',backdropColor:'transparent',callback:v=>v+'%',stepSize:15},
+      min:0,max:60,
+    }},
+  },
+});
+
+// ── ASYMMETRY TREND ─────────────────────────────────────────────────────
+new Chart(document.getElementById('c-asymTrend'), {
+  type: 'line',
+  data: {
+    labels: SESSIONS,
+    datasets: [
+      { label:'Hip Extension', data:[56,4,3.3],    borderColor:'#2563eb', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#2563eb', pointBorderWidth:2.5, tension:.4, spanGaps:true },
+      { label:'Hip Flexion',   data:[16.9,17,17],  borderColor:'#5046e4', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#5046e4', pointBorderWidth:2.5, tension:.4, spanGaps:true },
+      { label:'Hip Add/Abd',   data:[9.1,0.6,3.5], borderColor:'#16a34a', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#16a34a', pointBorderWidth:2.5, tension:.4, spanGaps:true },
+      { label:'Knee Extension',data:[15.7,12,12],  borderColor:'#b45309', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#b45309', pointBorderWidth:2.5, tension:.4, spanGaps:true },
+      { label:'Knee Flexion',  data:[56,32,32],    borderColor:'#b91c1c', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#b91c1c', pointBorderWidth:2.5, tension:.4, spanGaps:true },
+      { label:'Stability',     data:[29.3,29,29],  borderColor:'#dc5a1e', backgroundColor:'transparent', borderWidth:2.5, pointRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#dc5a1e', pointBorderWidth:2.5, borderDash:[6,3], tension:.4, spanGaps:true },
+    ],
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{labels:{color:'#3d4461',boxWidth:12,usePointStyle:true,pointStyle:'circle',padding:16,font:{size:12,weight:'600'}}},
+      tooltip:{...TT,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw ?? 'N/A'}%`}},
+    },
+    scales:{
+      x:{grid:{color:'#f0f2f8'},ticks:{color:'#3d4461',padding:10,font:{size:12,weight:'500'}}},
+      y:{grid:{color:'#f0f2f8'},title:{display:true,text:'Asymmetry (%) — lower is better',color:'#3d4461'},
+        min:0,max:65,ticks:{color:'#3d4461',callback:v=>v+'%'}},
+    },
+  },
+});
+
+// ── SESSION INTERACTIVITY ────────────────────────────────────────────────
+let currentSession = -1;
+
+function updateForceCallouts(si) {
+  const idx = si === -1 ? 2 : si;
+  Object.keys(SVALS).forEach(key => {
+    const sv = SVALS[key];
+    const lEl  = document.getElementById(`fv-${key}-L`);
+    const rEl  = document.getElementById(`fv-${key}-R`);
+    const lpEl = document.getElementById(`fp-${key}-L`);
+    const rpEl = document.getElementById(`fp-${key}-R`);
+    const lpBar= document.getElementById(`pb-${key}-L`);
+    const rpBar= document.getElementById(`pb-${key}-R`);
+    if (lEl)  lEl.innerHTML  = sv.L[idx] + '<span class="force-unit"> N</span>';
+    if (rEl)  rEl.innerHTML  = sv.R[idx] === '—' ? '—' : sv.R[idx] + '<span class="force-unit"> N</span>';
+    if (lpEl) lpEl.textContent = pctLabel(sv.LP[idx]);
+    if (rpEl) rpEl.textContent = sv.RP[idx] ? pctLabel(sv.RP[idx]) : '—';
+    if (lpBar) lpBar.style.width = sv.LP[idx] + '%';
+    if (rpBar) rpBar.style.width = (sv.RP[idx] || 0) + '%';
+  });
+}
+
+function highlightCharts(si) {
+  Object.values(allMuscleCharts).forEach(ch => {
+    ch.data.datasets.forEach((ds, di) => {
+      const base  = di === 0 ? '#2563eb' : '#dc5a1e';
+      const faded = di === 0 ? 'rgba(37,99,235,0.25)' : 'rgba(220,90,30,0.25)';
+      if (si === -1) {
+        ds.pointRadius = [6,6,6];
+        ds.pointBorderColor = base;
+      } else {
+        ds.pointRadius      = [0,1,2].map(i => i === si ? 10 : 3);
+        ds.pointBorderColor = [0,1,2].map(i => i === si ? base : faded);
+        ds.borderColor      = si >= 0 ? base : faded;
+      }
+    });
+    ch.update('none');
+  });
+}
+
+function selectSession(idx) {
+  if (currentSession === idx && idx !== -1) idx = -1;
+  currentSession = idx;
+
+  document.querySelectorAll('.badge').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.session) === idx);
+  });
+
+  highlightCharts(idx);
+  updateForceCallouts(idx);
+
+  const panel = document.getElementById('snapshot');
+  const inner = document.getElementById('snap-inner');
+  if (idx === -1) { panel.classList.remove('open'); return; }
+
+  const snap = SNAPSHOTS[idx];
+  inner.innerHTML = snap.items.map(it => `
+    <div>
+      <div class="snap-label">${it.label}</div>
+      <div class="snap-lr">
+        <span class="snap-l">${it.L}</span>
+        <span class="snap-r">${it.R}</span>
+      </div>
+      <div class="snap-asym">Asym: ${it.asym}</div>
+    </div>
+  `).join('');
+  inner.style.borderColor = snap.color + '44';
+  panel.classList.add('open');
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+</script>
+</body>
+</html>
